@@ -118,6 +118,7 @@ class UserController extends AbstractController {
         header('Location: /user');
         exit();
     }
+    
     // Другие методы контроллера
     public function actionAuth(): string {
         $render = new Render();
