@@ -18,12 +18,12 @@ class User {
     }
 
     // Установить имя
-    public function setName(string $userName) : void {
+    public function setName(string $userName): void {
         $this->userName = $userName;
     }
 
     // Установить фамилию
-    public function setLastName(string $userLastName) : void {
+    public function setLastName(string $userLastName): void {
         $this->userLastName = $userLastName;
     }
 
@@ -43,7 +43,7 @@ class User {
     }
 
     // Установить день рождения
-    public function setBirthdayFromString(string $birthdayString) : void {
+    public function setBirthdayFromString(string $birthdayString): void {
         $this->userBirthday = strtotime($birthdayString);
     }
 
@@ -56,7 +56,7 @@ class User {
 
         $users = [];
         foreach ($result as $item) {
-            $user = new User($item['user_name'], $item['user_lastname'], $item['user_birthday_timestamp']);
+            $user = new User($item['user_name'], $item['user_lastname'], $item['user_birthday_timestamp'], $item['id_user']);
             $users[] = $user;
         }
         
@@ -65,25 +65,19 @@ class User {
 
     // Валидация данных из запроса
     public static function validateRequestData(): bool {
-        $result = true;
-
         if (!(
             isset($_POST['name']) && !empty($_POST['name']) &&
             isset($_POST['lastname']) && !empty($_POST['lastname']) &&
             isset($_POST['birthday']) && !empty($_POST['birthday'])
         )) {
-            $result = false;
+            return false;
         }
 
         if (!preg_match('/^(\d{2}-\d{2}-\d{4})$/', $_POST['birthday'])) {
-            $result = false;
+            return false;
         }
 
-        if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] != $_POST['csrf_token']) {
-            $result = false;
-        }
-
-        return $result;
+        return isset($_SESSION['csrf_token']) && $_SESSION['csrf_token'] === $_POST['csrf_token'];
     }
 
     // Установить параметры из запроса
@@ -112,16 +106,14 @@ class User {
         $result = $handler->fetch();
 
         if ($result) {
-            return new User($result['user_name'], $result['user_lastname'], $result['user_birthday_timestamp']);
+            return new User($result['user_name'], $result['user_lastname'], $result['user_birthday_timestamp'], $result['id_user']);
         }
         return null; // Если пользователь не найден
     }
 
     // Обновить данные пользователя в базе данных
     public function updateInStorage(): void {
-        // Здесь необходимо добавить поле ID пользователя
         $sql = "UPDATE users SET user_name = :user_name, user_lastname = :user_lastname, user_birthday_timestamp = :user_birthday WHERE id_user = :id_user";
-
         $handler = Application::$storage->get()->prepare($sql);
         $handler->execute([
             'user_name' => $this->userName,
@@ -136,5 +128,22 @@ class User {
         $sql = "DELETE FROM users WHERE id_user = :id_user";
         $handler = Application::$storage->get()->prepare($sql);
         $handler->execute(['id_user' => $userId]);
+    }
+
+    // Получить роли пользователя
+    public static function getUserRoles(int $userId): array {
+        $roles = [];
+        if ($userId) {
+            $rolesSql = "SELECT role FROM user_roles WHERE id_user = :id";
+            $handler = Application::$storage->get()->prepare($rolesSql);
+            $handler->execute(['id' => $userId]);
+            $result = $handler->fetchAll();
+
+            foreach ($result as $role) {
+                $roles[] = $role['role'];
+            }
+        }
+
+        return $roles;
     }
 }
